@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+// This is the main instance used by the app
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// This allows your API routes to import 'createClient' directly to fix the build error
+export { createClient }
 
 // Get current session
 export async function getCurrentSession() {
