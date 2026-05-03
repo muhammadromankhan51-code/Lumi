@@ -4,10 +4,28 @@ import React, { useState, useRef } from 'react'
 import { Camera, Upload, Mic, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { useMedications, Medicine } from '@/context/medications-context'
 
+// Structured data from API
+interface ExtractedMedicine {
+  name: string
+  dosage: string
+  frequency: string
+  purpose: string
+  safety: 'Safe' | 'Caution' | 'High Risk'
+}
+
+interface StructuredAnalysis {
+  medications: ExtractedMedicine[]
+  interactions: string[]
+  riskLevel: 'Low' | 'Medium' | 'High'
+  warnings: string[]
+  patientSummary: string
+}
+
 interface AnalysisResult {
   success: boolean
   rawText: string
   analysis: string
+  structuredData?: StructuredAnalysis | null
 }
 
 export function ScanPrescriptionSection() {
@@ -18,97 +36,15 @@ export function ScanPrescriptionSection() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { addMedicines, hasMedicines } = useMedications()
 
-  const parseMedicinesFromAnalysis = (analysis: string): Omit<Medicine, 'id'>[] => {
-    const medicines: Omit<Medicine, 'id'>[] = []
-    
-    // Try to extract medication information from the AI analysis
-    const lines = analysis.split('\n')
-    let currentMedicine: Partial<Omit<Medicine, 'id'>> = {}
-    
-    for (const line of lines) {
-      const lowerLine = line.toLowerCase()
-      
-      // Look for medication names (usually bold or at start of sections)
-      if (lowerLine.includes('medication') || lowerLine.includes('medicine') || lowerLine.includes('drug')) {
-        // Try to extract from patterns like "1. Metformin 500mg" or "- Amoxicillin"
-        const nameMatch = line.match(/(?:\d+\.\s*|\-\s*|\*\s*)([A-Za-z]+(?:\s+\d+\s*mg)?)/i)
-        if (nameMatch) {
-          if (currentMedicine.name) {
-            medicines.push({
-              name: currentMedicine.name,
-              dosage: currentMedicine.dosage || 'As prescribed',
-              purpose: currentMedicine.purpose || 'See prescription',
-              when: currentMedicine.when || 'As directed',
-              safety: currentMedicine.safety || 'Caution'
-            })
-          }
-          currentMedicine = { name: nameMatch[1] }
-        }
-      }
-      
-      // Extract dosage
-      const dosageMatch = line.match(/(\d+\s*(?:mg|ml|mcg|g|tablet|capsule)s?)/i)
-      if (dosageMatch && currentMedicine.name) {
-        currentMedicine.dosage = dosageMatch[1]
-      }
-      
-      // Extract frequency/timing
-      if (lowerLine.includes('daily') || lowerLine.includes('twice') || lowerLine.includes('morning') || 
-          lowerLine.includes('evening') || lowerLine.includes('night') || lowerLine.includes('breakfast') ||
-          lowerLine.includes('lunch') || lowerLine.includes('dinner')) {
-        if (currentMedicine.name) {
-          currentMedicine.when = line.replace(/^[\-\*\d\.\s]+/, '').trim()
-        }
-      }
-      
-      // Extract purpose
-      if (lowerLine.includes('for') || lowerLine.includes('treats') || lowerLine.includes('used to') || 
-          lowerLine.includes('purpose') || lowerLine.includes('helps')) {
-        if (currentMedicine.name) {
-          currentMedicine.purpose = line.replace(/^[\-\*\d\.\s]+/, '').trim()
-        }
-      }
-      
-      // Extract safety level
-      if (lowerLine.includes('high risk') || lowerLine.includes('dangerous')) {
-        currentMedicine.safety = 'High Risk'
-      } else if (lowerLine.includes('caution') || lowerLine.includes('warning') || lowerLine.includes('interaction')) {
-        currentMedicine.safety = 'Caution'
-      } else if (lowerLine.includes('safe') || lowerLine.includes('low risk')) {
-        currentMedicine.safety = 'Safe'
-      }
-    }
-    
-    // Add the last medicine if exists
-    if (currentMedicine.name) {
-      medicines.push({
-        name: currentMedicine.name,
-        dosage: currentMedicine.dosage || 'As prescribed',
-        purpose: currentMedicine.purpose || 'See prescription',
-        when: currentMedicine.when || 'As directed',
-        safety: currentMedicine.safety || 'Caution'
-      })
-    }
-    
-    // If parsing didn't work well, try a simpler approach
-    if (medicines.length === 0) {
-      // Look for common medicine name patterns
-      const medicinePatterns = analysis.match(/([A-Z][a-z]+(?:in|ol|ide|ate|one|ine|tan|pril|sartan)?)\s+(\d+\s*(?:mg|ml|mcg|g))/gi)
-      if (medicinePatterns) {
-        medicinePatterns.forEach(match => {
-          const parts = match.split(/\s+/)
-          medicines.push({
-            name: parts[0],
-            dosage: parts.slice(1).join(' '),
-            purpose: 'As prescribed by doctor',
-            when: 'Follow prescription instructions',
-            safety: 'Caution'
-          })
-        })
-      }
-    }
-    
-    return medicines
+  // Convert structured medicine data to Medicine format
+  const convertToMedicines = (medications: ExtractedMedicine[]): Omit<Medicine, 'id'>[] => {
+    return medications.map(med => ({
+      name: med.name,
+      dosage: med.dosage,
+      purpose: med.purpose,
+      when: med.frequency,
+      safety: med.safety
+    }))
   }
 
   const handleFileUpload = async (file: File) => {
@@ -133,19 +69,27 @@ export function ScanPrescriptionSection() {
       const data: AnalysisResult = await response.json()
       setAnalysisResult(data)
 
-      if (data.analysis && !data.analysis.includes('API key')) {
-        // Try to parse medicines from the analysis
-        const parsedMedicines = parseMedicinesFromAnalysis(data.analysis)
-        
-        if (parsedMedicines.length > 0) {
-          addMedicines(parsedMedicines)
-          setSuccess(`Successfully analyzed prescription and found ${parsedMedicines.length} medication(s).`)
-        } else {
-          // If parsing failed, add a placeholder to show the analysis worked
-          setSuccess('Prescription analyzed. Please review the details below and add medications manually if needed.')
-        }
-      } else if (data.rawText) {
-        setSuccess('Text extracted from prescription. AI analysis may require API configuration.')
+      // Check for API configuration errors
+      if (data.analysis?.includes('AI service requires configuration')) {
+        setError('AI service requires configuration. Please add your Gemini API key in Settings > Vars.')
+        return
+      }
+
+      if (!data.success) {
+        setError(data.analysis || 'Failed to analyze prescription')
+        return
+      }
+
+      // Use structured data if available for reliable medicine extraction
+      if (data.structuredData?.medications && data.structuredData.medications.length > 0) {
+        const medicines = convertToMedicines(data.structuredData.medications)
+        addMedicines(medicines)
+        setSuccess(`Successfully extracted ${medicines.length} medication(s) from your prescription and added them to your medicine list.`)
+      } else if (data.analysis && !data.analysis.includes('failed')) {
+        // Show analysis but note that no medicines were auto-extracted
+        setSuccess('Prescription analyzed. Please review the details below.')
+      } else {
+        setError('Could not extract medications from the prescription. Please try with a clearer image.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while analyzing the prescription')

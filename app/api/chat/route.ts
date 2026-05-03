@@ -1,14 +1,20 @@
 import { generateText } from 'ai'
+import { createGroq } from '@ai-sdk/groq'
 import { NextRequest, NextResponse } from 'next/server'
+
+// Initialize Groq client
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, medicines, imageBase64, mimeType } = body
+    const { message, medicines } = body
 
-    if (!message && !imageBase64) {
+    if (!message) {
       return NextResponse.json(
-        { error: 'Message or image is required' },
+        { error: 'Message is required' },
         { status: 400 }
       )
     }
@@ -32,33 +38,11 @@ Important guidelines:
 - Never diagnose conditions or replace professional medical advice
 ${medicineContext}`
 
-    // Build message content - supports both text and images
-    const userContent: Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> = []
-    
-    if (imageBase64) {
-      userContent.push({
-        type: 'image',
-        image: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`,
-      })
-    }
-    
-    if (message) {
-      userContent.push({
-        type: 'text',
-        text: message,
-      })
-    }
-
-    // Use Vercel AI Gateway (zero-config, no API key needed)
+    // Use Groq for fast inference
     const result = await generateText({
-      model: 'google/gemini-2.5-flash-preview-04-17',
+      model: groq('llama-3.3-70b-versatile'),
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userContent,
-        }
-      ]
+      prompt: message,
     })
 
     return NextResponse.json({
@@ -68,8 +52,10 @@ ${medicineContext}`
     })
   } catch (error) {
     console.error('[v0] Chat API error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
     return NextResponse.json(
-      { error: 'Failed to process your message. Please try again.' },
+      { error: `Failed to process your message: ${errorMessage}` },
       { status: 500 }
     )
   }
