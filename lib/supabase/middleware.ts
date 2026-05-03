@@ -33,16 +33,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect dashboard routes (temporarily disabled for testing)
-  // TODO: Re-enable auth protection before production
-  // if (
-  //   request.nextUrl.pathname.startsWith('/dashboard') &&
-  //   !user
-  // ) {
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = '/auth/signin'
-  //   return NextResponse.redirect(url)
-  // }
+  // Protect dashboard routes
+  if (
+    request.nextUrl.pathname.startsWith('/dashboard') &&
+    !user
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/signin'
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
