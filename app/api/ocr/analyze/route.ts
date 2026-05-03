@@ -1,5 +1,11 @@
 import { generateText } from 'ai'
+import { createGroq } from '@ai-sdk/groq'
 import { NextRequest, NextResponse } from 'next/server'
+
+// Initialize Groq client
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 export interface ExtractedMedicine {
   name: string
@@ -75,9 +81,9 @@ If you cannot read certain parts clearly, still extract what you can and note un
 Return ONLY the JSON object, nothing else.`
 
     try {
-      // Use Vercel AI Gateway with OpenAI (zero-config, works without credit card)
+      // Use Groq with vision model for prescription analysis
       const result = await generateText({
-        model: 'openai/gpt-4o-mini',
+        model: groq('llama-3.2-90b-vision-preview'),
         messages: [
           {
             role: 'user',

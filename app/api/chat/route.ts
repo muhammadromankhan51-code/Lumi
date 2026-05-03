@@ -1,14 +1,20 @@
 import { generateText } from 'ai'
+import { createGroq } from '@ai-sdk/groq'
 import { NextRequest, NextResponse } from 'next/server'
+
+// Initialize Groq client
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, medicines, imageBase64, mimeType } = body
+    const { message, medicines } = body
 
-    if (!message && !imageBase64) {
+    if (!message) {
       return NextResponse.json(
-        { error: 'Message or image is required' },
+        { error: 'Message is required' },
         { status: 400 }
       )
     }
@@ -32,33 +38,11 @@ Important guidelines:
 - Never diagnose conditions or replace professional medical advice
 ${medicineContext}`
 
-    // Build message content - supports both text and images
-    const userContent: Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> = []
-    
-    if (imageBase64) {
-      userContent.push({
-        type: 'image',
-        image: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`,
-      })
-    }
-    
-    if (message) {
-      userContent.push({
-        type: 'text',
-        text: message,
-      })
-    }
-
-    // Use Vercel AI Gateway with OpenAI (zero-config, works without credit card)
+    // Use Groq for fast inference
     const result = await generateText({
-      model: 'openai/gpt-4o-mini',
+      model: groq('llama-3.3-70b-versatile'),
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userContent,
-        }
-      ]
+      prompt: message,
     })
 
     return NextResponse.json({
