@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         
       case 'comprehensive':
       default:
-        result = getComprehensiveDoseAdjustment(adultDose, patient, drugInfo)
+        result = getComprehensiveDoseAdjustment(adultDose, patient, drugInfo, drugName)
         break
     }
     

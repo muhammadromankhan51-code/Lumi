@@ -295,6 +295,85 @@ export function calculateHepaticDose(
   }
 }
 
+// Maximum safe doses for common medications
+const MAX_SAFE_DOSES: Record<string, { 
+  general: number, 
+  pregnancy: number | null, // null means contraindicated
+  pediatric: number,
+  geriatric: number,
+  renalImpaired: number,
+  unit: string 
+}> = {
+  'aspirin': { general: 4000, pregnancy: null, pediatric: 60, geriatric: 2000, renalImpaired: 2000, unit: 'mg/day' },
+  'acetylsalicylic acid': { general: 4000, pregnancy: null, pediatric: 60, geriatric: 2000, renalImpaired: 2000, unit: 'mg/day' },
+  'paracetamol': { general: 4000, pregnancy: 3000, pediatric: 75, geriatric: 3000, renalImpaired: 2000, unit: 'mg/day' },
+  'acetaminophen': { general: 4000, pregnancy: 3000, pediatric: 75, geriatric: 3000, renalImpaired: 2000, unit: 'mg/day' },
+  'ibuprofen': { general: 3200, pregnancy: null, pediatric: 40, geriatric: 1200, renalImpaired: 1200, unit: 'mg/day' },
+  'metformin': { general: 2550, pregnancy: 2000, pediatric: 2000, geriatric: 1700, renalImpaired: 1000, unit: 'mg/day' },
+  'amoxicillin': { general: 3000, pregnancy: 3000, pediatric: 90, geriatric: 3000, renalImpaired: 1500, unit: 'mg/day' },
+  'ciprofloxacin': { general: 1500, pregnancy: null, pediatric: 30, geriatric: 1000, renalImpaired: 500, unit: 'mg/day' },
+}
+
+// Validate dose against maximum safe limits
+function validateDoseAgainstLimits(
+  drugName: string,
+  calculatedDose: number,
+  isPregnant: boolean,
+  isPediatric: boolean,
+  isGeriatric: boolean,
+  hasRenalImpairment: boolean,
+  weight?: number
+): { dose: number; warnings: string[]; isContraindicated: boolean } {
+  const normalizedName = drugName.toLowerCase().trim()
+  const limits = MAX_SAFE_DOSES[normalizedName]
+  const warnings: string[] = []
+  
+  if (!limits) {
+    return { dose: calculatedDose, warnings: [], isContraindicated: false }
+  }
+  
+  // Check pregnancy contraindication
+  if (isPregnant && limits.pregnancy === null) {
+    return {
+      dose: 0,
+      warnings: [`${drugName} is CONTRAINDICATED in pregnancy - DO NOT USE`],
+      isContraindicated: true
+    }
+  }
+  
+  // Get applicable limit based on patient factors
+  let applicableLimit = limits.general
+  
+  if (isPregnant && limits.pregnancy !== null) {
+    applicableLimit = Math.min(applicableLimit, limits.pregnancy)
+    warnings.push(`Pregnancy limit: max ${limits.pregnancy}${limits.unit}`)
+  }
+  
+  if (isPediatric && weight) {
+    // Pediatric limits are per kg
+    applicableLimit = Math.min(applicableLimit, limits.pediatric * weight)
+    warnings.push(`Pediatric limit: max ${limits.pediatric}mg/kg/day`)
+  }
+  
+  if (isGeriatric) {
+    applicableLimit = Math.min(applicableLimit, limits.geriatric)
+    warnings.push(`Geriatric limit: max ${limits.geriatric}${limits.unit}`)
+  }
+  
+  if (hasRenalImpairment) {
+    applicableLimit = Math.min(applicableLimit, limits.renalImpaired)
+    warnings.push(`Renal impairment limit: max ${limits.renalImpaired}${limits.unit}`)
+  }
+  
+  // Cap the dose at the applicable limit
+  if (calculatedDose > applicableLimit) {
+    warnings.push(`Dose reduced from ${calculatedDose}mg to ${applicableLimit}mg (max safe dose)`)
+    return { dose: applicableLimit, warnings, isContraindicated: false }
+  }
+  
+  return { dose: calculatedDose, warnings, isContraindicated: false }
+}
+
 // Pregnancy dose considerations
 export function getPregnancyDoseGuidance(
   drugName: string,
@@ -303,54 +382,103 @@ export function getPregnancyDoseGuidance(
 ): DoseRecommendation {
   const warnings: string[] = []
   let reason: string
-  let recommendation: string
+  
+  // Check specific drug contraindications first
+  const normalizedName = drugName.toLowerCase().trim()
+  const limits = MAX_SAFE_DOSES[normalizedName]
+  
+  if (limits && limits.pregnancy === null) {
+    return {
+      adjustedDose: 'DO NOT USE',
+      adjustmentPercentage: 0,
+      reason: `${drugName} is CONTRAINDICATED in pregnancy`,
+      warnings: [
+        'This medication is NOT SAFE for use during pregnancy',
+        'Consult your doctor for a safer alternative immediately',
+        'If you have taken this medication, contact your healthcare provider'
+      ],
+      formula: 'CONTRAINDICATED - No safe dose exists',
+      calculations: {
+        pregnancyCategory: pregnancyCategory.charCodeAt(0),
+        trimester,
+        maxSafeDose: 0
+      }
+    }
+  }
   
   switch (pregnancyCategory) {
     case 'A':
       reason = 'Category A - Adequate studies show no risk'
-      recommendation = 'Generally safe for use during pregnancy'
+      warnings.push('Generally safe for use during pregnancy')
       break
     case 'B':
       reason = 'Category B - Animal studies show no risk; human data limited'
-      recommendation = 'Generally considered safe if clinically needed'
+      warnings.push('Generally considered safe if clinically needed')
       warnings.push('Use only if clearly needed')
       break
     case 'C':
       reason = 'Category C - Risk cannot be ruled out'
-      recommendation = 'Use only if benefit justifies potential risk'
+      warnings.push('Use only if benefit clearly justifies potential risk')
       warnings.push('Discuss risks and benefits with prescriber')
-      warnings.push('Consider alternatives if available')
+      warnings.push('Consider safer alternatives if available')
       break
     case 'D':
-      reason = 'Category D - Positive evidence of risk'
-      recommendation = 'AVOID unless no alternatives exist'
-      warnings.push('SIGNIFICANT RISK to fetus')
-      warnings.push('Use only in life-threatening situations')
-      break
+      reason = 'Category D - Positive evidence of fetal risk'
+      warnings.push('AVOID - Significant risk to fetus documented')
+      warnings.push('Use ONLY in life-threatening situations where no alternatives exist')
+      warnings.push('Requires specialist consultation before use')
+      return {
+        adjustedDose: 'AVOID - Consult specialist',
+        adjustmentPercentage: 0,
+        reason,
+        warnings,
+        formula: `Pregnancy Category D - High Risk`,
+        calculations: {
+          pregnancyCategory: pregnancyCategory.charCodeAt(0),
+          trimester
+        }
+      }
     case 'X':
       reason = 'Category X - Contraindicated in pregnancy'
-      recommendation = 'DO NOT USE - Contraindicated'
-      warnings.push('CONTRAINDICATED - Risk clearly outweighs any benefit')
-      warnings.push('Must use effective contraception during treatment')
-      break
+      return {
+        adjustedDose: 'DO NOT USE',
+        adjustmentPercentage: 0,
+        reason,
+        warnings: [
+          'CONTRAINDICATED - Risk clearly outweighs any benefit',
+          'Can cause birth defects or fetal death',
+          'Must use effective contraception during treatment',
+          'If pregnant, stop immediately and contact doctor'
+        ],
+        formula: 'CONTRAINDICATED - Pregnancy Category X',
+        calculations: {
+          pregnancyCategory: pregnancyCategory.charCodeAt(0),
+          trimester
+        }
+      }
   }
   
   // Trimester-specific warnings
   if (trimester === 1) {
-    warnings.push('First trimester: highest risk for teratogenic effects')
+    warnings.push('First trimester: highest risk for birth defects')
   } else if (trimester === 3) {
-    warnings.push('Third trimester: consider effects on labor and neonate')
+    warnings.push('Third trimester: consider effects on labor and newborn')
+    // NSAIDs are particularly dangerous in 3rd trimester
+    if (normalizedName.includes('ibuprofen') || normalizedName.includes('aspirin') || normalizedName.includes('naproxen')) {
+      warnings.push('NSAIDs in 3rd trimester can cause premature closure of fetal heart duct')
+    }
   }
   
   return {
-    adjustedDose: pregnancyCategory === 'X' ? 'DO NOT USE' : 'Consult specialist',
-    adjustmentPercentage: pregnancyCategory === 'X' ? 0 : 100,
+    adjustedDose: limits?.pregnancy ? `Max ${limits.pregnancy}${limits.unit}` : 'Consult specialist',
+    adjustmentPercentage: limits?.pregnancy ? Math.round((limits.pregnancy / limits.general) * 100) : 75,
     reason,
     warnings,
     formula: `Pregnancy Category ${pregnancyCategory} - Trimester ${trimester}`,
     calculations: {
       pregnancyCategory: pregnancyCategory.charCodeAt(0),
-      trimester
+      trimester,
+      maxSafeDose: limits?.pregnancy || 0
     }
   }
 }
@@ -363,11 +491,57 @@ export function getComprehensiveDoseAdjustment(
     renallyCleared: boolean
     hepaticallyMetabolized: boolean
     pregnancyCategory?: 'A' | 'B' | 'C' | 'D' | 'X'
-  }
+  },
+  drugName?: string
 ): DoseRecommendation {
   const warnings: string[] = []
   let finalAdjustmentFactor = 1
   const reasons: string[] = []
+  
+  // Check pregnancy contraindication FIRST - this is critical safety check
+  if (patient.isPregnant) {
+    if (drugInfo.pregnancyCategory === 'X' || drugInfo.pregnancyCategory === 'D') {
+      const pregnancyResult = getPregnancyDoseGuidance(
+        drugName || '',
+        drugInfo.pregnancyCategory,
+        patient.pregnancyTrimester || 1
+      )
+      // For contraindicated drugs, return immediately
+      if (pregnancyResult.adjustmentPercentage === 0) {
+        return pregnancyResult
+      }
+    }
+    
+    // Check against known contraindicated drugs
+    if (drugName) {
+      const validation = validateDoseAgainstLimits(
+        drugName,
+        adultDose,
+        true, // isPregnant
+        patient.age < 18,
+        patient.age >= 65,
+        (patient.creatinineClearance !== undefined && patient.creatinineClearance < 60),
+        patient.weight
+      )
+      
+      if (validation.isContraindicated) {
+        return {
+          adjustedDose: 'DO NOT USE',
+          adjustmentPercentage: 0,
+          reason: `${drugName} is CONTRAINDICATED for this patient`,
+          warnings: validation.warnings,
+          formula: 'CONTRAINDICATED - No safe dose exists',
+          calculations: {
+            originalDose: adultDose,
+            adjustedDose: 0,
+            adjustmentFactor: 0
+          }
+        }
+      }
+      
+      warnings.push(...validation.warnings)
+    }
+  }
   
   // Pediatric
   if (patient.age < 18) {
@@ -405,25 +579,42 @@ export function getComprehensiveDoseAdjustment(
     }
   }
   
-  // Pregnancy
+  // Pregnancy adjustment (for non-contraindicated drugs)
   if (patient.isPregnant && drugInfo.pregnancyCategory) {
     const pregnancyResult = getPregnancyDoseGuidance(
-      '',
+      drugName || '',
       drugInfo.pregnancyCategory,
       patient.pregnancyTrimester || 1
     )
     warnings.push(...pregnancyResult.warnings)
-    if (drugInfo.pregnancyCategory === 'X') {
-      return pregnancyResult
-    }
+    reasons.push(`Pregnancy: ${pregnancyResult.reason}`)
   }
   
   // Nursing
   if (patient.isNursing) {
     warnings.push('Breastfeeding: Check drug excretion in breast milk')
+    warnings.push('Some medications pass into breast milk - consult specialist')
   }
   
-  const adjustedDose = adultDose * finalAdjustmentFactor
+  let adjustedDose = adultDose * finalAdjustmentFactor
+  
+  // Final validation against safe dose limits
+  if (drugName) {
+    const validation = validateDoseAgainstLimits(
+      drugName,
+      adjustedDose,
+      patient.isPregnant || false,
+      patient.age < 18,
+      patient.age >= 65,
+      (patient.creatinineClearance !== undefined && patient.creatinineClearance < 60),
+      patient.weight
+    )
+    
+    if (validation.dose !== adjustedDose) {
+      adjustedDose = validation.dose
+      warnings.push(...validation.warnings)
+    }
+  }
   
   return {
     adjustedDose: `${adjustedDose.toFixed(2)} mg`,
