@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
@@ -8,8 +10,11 @@ import { ActionButtons } from '@/components/dashboard/action-buttons'
 import { TodaySchedule } from '@/components/dashboard/today-schedule'
 import { AdherenceProgress } from '@/components/dashboard/adherence-progress'
 import { NearbyPharmacies } from '@/components/dashboard/nearby-pharmacies'
+import { useMedications } from '@/context/medications-context'
 
 export default function DashboardPage() {
+  const { hasMedicines } = useMedications()
+
   return (
     <div className="flex">
       {/* Sidebar */}
@@ -28,14 +33,14 @@ export default function DashboardPage() {
               {/* Scan Prescription Section */}
               <ScanPrescriptionSection />
 
-              {/* Risk Score Section */}
+              {/* Risk Score Section - Only shows when medicines exist */}
               <RiskScoreSection />
 
-              {/* Medicines Table */}
+              {/* Medicines Table - Only shows when medicines exist */}
               <MedicinesTable />
 
-              {/* Action Buttons */}
-              <ActionButtons />
+              {/* Action Buttons - Only shows when medicines exist */}
+              {hasMedicines && <ActionButtons />}
             </div>
 
             {/* Right Column - Sidebar Widgets */}
@@ -46,7 +51,7 @@ export default function DashboardPage() {
               {/* Adherence Progress */}
               <AdherenceProgress />
 
-              {/* Nearby Pharmacies */}
+              {/* Nearby Pharmacies - Always visible */}
               <NearbyPharmacies />
             </div>
           </div>

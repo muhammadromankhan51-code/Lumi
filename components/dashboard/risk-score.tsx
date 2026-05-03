@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { AlertCircle, AlertTriangle, Shield, Sparkles } from 'lucide-react'
+import { useMedications } from '@/context/medications-context'
 
 interface RiskScoreProps {
   score?: number
@@ -12,21 +13,54 @@ interface RiskScoreProps {
 }
 
 export function RiskScoreSection({
-  score = 7.5,
-  summary = 'Your prescription has some important points to note. Some medicines may interact with each other. Please follow the instructions carefully and consult your doctor if you feel unwell.',
-  drugInteractions = 2,
-  doseAdjustments = 1,
-  warnings = 1,
+  score,
+  summary,
+  drugInteractions,
+  doseAdjustments,
+  warnings,
 }: RiskScoreProps) {
-  const getRiskLevel = (score: number) => {
-    if (score < 3) return { level: 'Low Risk', color: 'text-emerald-600', bg: 'from-emerald-500 to-teal-500' }
-    if (score < 6) return { level: 'Moderate', color: 'text-amber-600', bg: 'from-amber-500 to-orange-500' }
+  const { hasMedicines, medicines, isLoading } = useMedications()
+
+  // If no medicines uploaded and no explicit props passed, don't render
+  if (!hasMedicines && score === undefined) {
+    return null
+  }
+
+  if (isLoading) {
+    return (
+      <div className="mb-8 animate-pulse">
+        <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
+        <div className="glass-card-elevated rounded-2xl p-6">
+          <div className="h-24 bg-gray-100 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
+  // Calculate dynamic values based on medicines if not provided
+  const calculatedScore = score ?? (medicines.length > 0 ? 
+    Math.min(10, medicines.filter(m => m.safety === 'High Risk').length * 3 + 
+              medicines.filter(m => m.safety === 'Caution').length * 1.5 + 2) : 0)
+  
+  const calculatedInteractions = drugInteractions ?? medicines.filter(m => m.safety === 'High Risk').length
+  const calculatedAdjustments = doseAdjustments ?? medicines.filter(m => m.safety === 'Caution').length
+  const calculatedWarnings = warnings ?? Math.max(1, Math.floor(medicines.length / 2))
+  
+  const calculatedSummary = summary ?? (medicines.length > 0 ? 
+    `Your prescription contains ${medicines.length} medication${medicines.length > 1 ? 's' : ''}. ${
+      calculatedInteractions > 0 ? 'Some medicines may interact with each other. ' : ''
+    }Please follow the instructions carefully and consult your doctor if you feel unwell.` : 
+    'No medications to analyze.')
+
+  const getRiskLevel = (s: number) => {
+    if (s < 3) return { level: 'Low Risk', color: 'text-emerald-600', bg: 'from-emerald-500 to-teal-500' }
+    if (s < 6) return { level: 'Moderate', color: 'text-amber-600', bg: 'from-amber-500 to-orange-500' }
     return { level: 'High Risk', color: 'text-red-500', bg: 'from-red-500 to-rose-500' }
   }
 
-  const riskInfo = getRiskLevel(score)
+  const riskInfo = getRiskLevel(calculatedScore)
   const circumference = 2 * Math.PI * 45
-  const strokeDashoffset = circumference - (score / 10) * circumference
+  const strokeDashoffset = circumference - (calculatedScore / 10) * circumference
 
   return (
     <div className="mb-8 animate-fade-in">
@@ -70,7 +104,7 @@ export function RiskScoreSection({
                 </defs>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-foreground">{score}</span>
+                <span className="text-2xl font-bold text-foreground">{calculatedScore.toFixed(1)}</span>
                 <span className="text-[10px] text-muted-foreground font-medium">/10</span>
               </div>
             </div>
@@ -88,7 +122,7 @@ export function RiskScoreSection({
               </div>
               <span className="text-sm font-semibold text-foreground">AI Summary</span>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">{summary}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{calculatedSummary}</p>
           </div>
         </div>
 
@@ -99,7 +133,7 @@ export function RiskScoreSection({
               <AlertCircle className="w-4 h-4 text-red-600" />
             </div>
             <div>
-              <p className="text-lg font-bold text-red-600">{drugInteractions}</p>
+              <p className="text-lg font-bold text-red-600">{calculatedInteractions}</p>
               <p className="text-[11px] text-red-600/70 font-medium">Interactions</p>
             </div>
           </div>
@@ -109,7 +143,7 @@ export function RiskScoreSection({
               <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
             <div>
-              <p className="text-lg font-bold text-amber-600">{doseAdjustments}</p>
+              <p className="text-lg font-bold text-amber-600">{calculatedAdjustments}</p>
               <p className="text-[11px] text-amber-600/70 font-medium">Adjustments</p>
             </div>
           </div>
@@ -119,7 +153,7 @@ export function RiskScoreSection({
               <Shield className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <p className="text-lg font-bold text-blue-600">{warnings}</p>
+              <p className="text-lg font-bold text-blue-600">{calculatedWarnings}</p>
               <p className="text-[11px] text-blue-600/70 font-medium">Warnings</p>
             </div>
           </div>

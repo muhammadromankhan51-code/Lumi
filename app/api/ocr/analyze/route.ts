@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Tesseract from 'tesseract.js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type') || ''
     let imageBase64: string | null = null
+    let mimeType: string = 'image/jpeg'
 
     // Handle both JSON and FormData
     if (contentType.includes('application/json')) {
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       if (file) {
         const arrayBuffer = await file.arrayBuffer()
         imageBase64 = Buffer.from(arrayBuffer).toString('base64')
+        mimeType = file.type || 'image/jpeg'
       }
     }
 
@@ -27,62 +28,72 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // OCR extraction using Tesseract
-    let extractedText = ''
+    // AI analysis with Gemini - using vision capabilities directly
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
+    
+    if (!apiKey) {
+      return NextResponse.json({
+        success: false,
+        rawText: '',
+        analysis: 'Gemini API key not configured. Please add NEXT_PUBLIC_GEMINI_API_KEY to your environment variables.',
+        timestamp: new Date().toISOString(),
+      })
+    }
+
     try {
-      const imageBuffer = Buffer.from(imageBase64, 'base64')
-      const { data: { text } } = await Tesseract.recognize(
-        imageBuffer,
-        'eng',
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+      const analysisPrompt = `You are Lumi, an AI Digital Pharmacist. Analyze this prescription image and provide a detailed analysis.
+
+Please extract and provide:
+
+1. **Medications Found**: List each medication with:
+   - Name
+   - Dosage (e.g., 500mg)
+   - Frequency (e.g., twice daily, after meals)
+   
+2. **Purpose**: What each medication is typically used for (in simple words)
+
+3. **Drug Interactions**: Any potential interactions between the medications listed
+
+4. **Risk Assessment**: Overall risk level (Low/Medium/High) with explanation
+
+5. **Important Warnings**: Any important precautions the patient should know
+
+6. **Patient Summary**: A simple, easy-to-understand summary for the patient
+
+If you cannot read the prescription clearly or certain parts are unclear, please mention that and provide what analysis you can based on what is visible.
+
+Format your response in a clear, readable way with the sections above.`
+
+      const result = await model.generateContent([
         {
-          logger: () => {} // Suppress logs
-        }
-      )
-      extractedText = text.trim()
-    } catch (ocrError) {
-      console.error('[v0] OCR error:', ocrError)
-      extractedText = 'Could not extract text from image'
+          inlineData: {
+            data: imageBase64,
+            mimeType: mimeType,
+          }
+        },
+        analysisPrompt
+      ])
+      
+      const analysis = result.response.text()
+
+      return NextResponse.json({
+        success: true,
+        rawText: 'Image analyzed directly by AI',
+        analysis: analysis,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (aiError) {
+      console.error('[v0] Gemini AI analysis error:', aiError)
+      return NextResponse.json({
+        success: false,
+        rawText: '',
+        analysis: 'AI analysis failed. Please check that your Gemini API key is valid and try again.',
+        timestamp: new Date().toISOString(),
+      })
     }
-
-    // AI analysis with Gemini
-    const apiKey = process.env.GEMINI_API_KEY
-    let analysis = null
-
-    if (apiKey && extractedText && extractedText !== 'Could not extract text from image') {
-      try {
-        const genAI = new GoogleGenerativeAI(apiKey)
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
-        const analysisPrompt = `You are Lumi, an AI Pharmacist. Analyze this prescription text extracted via OCR and provide:
-
-1. **Medications Found**: List each medication with name, dosage, and frequency
-2. **Purpose**: What each medication is typically used for
-3. **Drug Interactions**: Any potential interactions between the medications
-4. **Risk Assessment**: Low/Medium/High risk with explanation
-5. **Warnings**: Any important precautions
-6. **Patient Summary**: Simple explanation for the patient
-
-Prescription text:
-${extractedText}
-
-If the text is unclear or incomplete, mention that and provide what analysis you can.`
-
-        const result = await model.generateContent(analysisPrompt)
-        analysis = result.response.text()
-      } catch (aiError) {
-        console.error('[v0] AI analysis error:', aiError)
-        analysis = 'AI analysis unavailable. Please review the extracted text manually.'
-      }
-    } else if (!apiKey) {
-      analysis = 'AI analysis requires GEMINI_API_KEY to be configured.'
-    }
-
-    return NextResponse.json({
-      success: true,
-      rawText: extractedText,
-      analysis: analysis,
-      timestamp: new Date().toISOString(),
-    })
   } catch (error) {
     console.error('[v0] OCR processing error:', error)
     return NextResponse.json(

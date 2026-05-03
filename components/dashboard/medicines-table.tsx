@@ -1,55 +1,8 @@
 'use client'
 
 import React from 'react'
-import { CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react'
-
-interface Medicine {
-  id: string
-  name: string
-  dosage: string
-  purpose: string
-  when: string
-  safety: 'Safe' | 'Caution' | 'High Risk'
-}
-
-interface MedicinesTableProps {
-  medicines?: Medicine[]
-}
-
-const DEFAULT_MEDICINES: Medicine[] = [
-  {
-    id: '1',
-    name: 'Metformin 500mg',
-    dosage: '500mg',
-    purpose: 'Helps control blood sugar',
-    when: 'After breakfast',
-    safety: 'Safe',
-  },
-  {
-    id: '2',
-    name: 'Amoxicillin 500mg',
-    dosage: '500mg',
-    purpose: 'Fights bacterial infection',
-    when: 'After food, 3 times a day',
-    safety: 'Caution',
-  },
-  {
-    id: '3',
-    name: 'Ibuprofen 400mg',
-    dosage: '400mg',
-    purpose: 'Relieves pain and fever',
-    when: 'After food if needed',
-    safety: 'High Risk',
-  },
-  {
-    id: '4',
-    name: 'Aspirin 75mg',
-    dosage: '75mg',
-    purpose: 'Helps prevent blood clots',
-    when: 'After dinner',
-    safety: 'Caution',
-  },
-]
+import { CheckCircle, AlertCircle, AlertTriangle, Pill } from 'lucide-react'
+import { useMedications } from '@/context/medications-context'
 
 const getSafetyBadge = (safety: string) => {
   switch (safety) {
@@ -75,11 +28,37 @@ const getSafetyBadge = (safety: string) => {
         </div>
       )
     default:
-      return null
+      return (
+        <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+          <Pill className="w-4 h-4 text-gray-600" />
+          <span className="text-xs font-semibold text-gray-700">Unknown</span>
+        </div>
+      )
   }
 }
 
-export function MedicinesTable({ medicines = DEFAULT_MEDICINES }: MedicinesTableProps) {
+export function MedicinesTable() {
+  const { medicines, hasMedicines, isLoading } = useMedications()
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-border p-8 mb-8">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
+          <div className="space-y-4">
+            <div className="h-12 bg-gray-100 rounded"></div>
+            <div className="h-12 bg-gray-100 rounded"></div>
+            <div className="h-12 bg-gray-100 rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasMedicines) {
+    return null
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-border p-8 mb-8">
       <h3 className="text-lg font-bold text-foreground mb-6">Your Medicines</h3>
@@ -125,4 +104,3 @@ export function MedicinesTable({ medicines = DEFAULT_MEDICINES }: MedicinesTable
     </div>
   )
 }
-
