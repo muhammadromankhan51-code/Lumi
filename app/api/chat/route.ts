@@ -1,29 +1,17 @@
+import { generateText } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, medicines } = body
+    const { message, medicines, imageBase64, mimeType } = body
 
-    if (!message) {
+    if (!message && !imageBase64) {
       return NextResponse.json(
-        { error: 'Message is required' },
+        { error: 'Message or image is required' },
         { status: 400 }
       )
     }
-
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Gemini API key not configured' },
-        { status: 500 }
-      )
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
     // Build context from user's medicines if available
     let medicineContext = ''
@@ -42,16 +30,40 @@ Important guidelines:
 - Use simple, easy-to-understand language
 - If asked about specific medications, provide general information about their uses, common side effects, and precautions
 - Never diagnose conditions or replace professional medical advice
-${medicineContext}
+${medicineContext}`
 
-User question: ${message}`
+    // Build message content - supports both text and images
+    const userContent: Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> = []
+    
+    if (imageBase64) {
+      userContent.push({
+        type: 'image',
+        image: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`,
+      })
+    }
+    
+    if (message) {
+      userContent.push({
+        type: 'text',
+        text: message,
+      })
+    }
 
-    const result = await model.generateContent(systemPrompt)
-    const response = result.response.text()
+    // Use Vercel AI Gateway (zero-config, no API key needed)
+    const result = await generateText({
+      model: 'google/gemini-2.5-flash-preview-04-17',
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: userContent,
+        }
+      ]
+    })
 
     return NextResponse.json({
       success: true,
-      response: response,
+      response: result.text,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

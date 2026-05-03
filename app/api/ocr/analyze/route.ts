@@ -1,5 +1,5 @@
+import { generateText } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,23 +28,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // AI analysis with Gemini - using vision capabilities directly
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
-    
-    if (!apiKey) {
-      return NextResponse.json({
-        success: false,
-        rawText: '',
-        analysis: 'Gemini API key not configured. Please add NEXT_PUBLIC_GEMINI_API_KEY to your environment variables.',
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
-      const analysisPrompt = `You are Lumi, an AI Digital Pharmacist. Analyze this prescription image and provide a detailed analysis.
+    // Use Vercel AI Gateway (zero-config, no API key needed)
+    const analysisPrompt = `You are Lumi, an AI Digital Pharmacist. Analyze this prescription image and provide a detailed analysis.
 
 Please extract and provide:
 
@@ -67,30 +52,38 @@ If you cannot read the prescription clearly or certain parts are unclear, please
 
 Format your response in a clear, readable way with the sections above.`
 
-      const result = await model.generateContent([
-        {
-          inlineData: {
-            data: imageBase64,
-            mimeType: mimeType,
+    try {
+      const result = await generateText({
+        model: 'google/gemini-2.5-flash-preview-04-17',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                image: `data:${mimeType};base64,${imageBase64}`,
+              },
+              {
+                type: 'text',
+                text: analysisPrompt
+              }
+            ]
           }
-        },
-        analysisPrompt
-      ])
-      
-      const analysis = result.response.text()
+        ]
+      })
 
       return NextResponse.json({
         success: true,
         rawText: 'Image analyzed directly by AI',
-        analysis: analysis,
+        analysis: result.text,
         timestamp: new Date().toISOString(),
       })
     } catch (aiError) {
-      console.error('[v0] Gemini AI analysis error:', aiError)
+      console.error('[v0] AI analysis error:', aiError)
       return NextResponse.json({
         success: false,
         rawText: '',
-        analysis: 'AI analysis failed. Please check that your Gemini API key is valid and try again.',
+        analysis: 'AI analysis failed. Please try again.',
         timestamp: new Date().toISOString(),
       })
     }
