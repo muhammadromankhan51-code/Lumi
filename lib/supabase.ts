@@ -1,33 +1,39 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createBrowserClient } from '@/lib/supabase/client'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// This is the main instance used by the app
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Legacy client for backward compatibility
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
 
-// This allows your API routes to import 'createClient' directly to fix the build error
-export { createClient }
+// Re-export for backward compatibility
+export { createSupabaseClient as createClient }
 
 // Get current session
 export async function getCurrentSession() {
+  const supabase = createBrowserClient()
   const { data: { session } } = await supabase.auth.getSession()
   return session
 }
 
 // Get current user
 export async function getCurrentUser() {
+  const supabase = createBrowserClient()
   const { data: { session } } = await supabase.auth.getSession()
   return session?.user ?? null
 }
 
 // Sign up with email/password
 export async function signUpWithEmail(email: string, password: string) {
+  const supabase = createBrowserClient()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify`,
+      emailRedirectTo:
+        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+        `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
     },
   })
   return { data, error }
@@ -35,6 +41,7 @@ export async function signUpWithEmail(email: string, password: string) {
 
 // Sign in with email/password
 export async function signInWithEmail(email: string, password: string) {
+  const supabase = createBrowserClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -44,21 +51,28 @@ export async function signInWithEmail(email: string, password: string) {
 
 // Sign in with Google
 export async function signInWithGoogle() {
+  const supabase = createBrowserClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo:
+        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+        `${window.location.origin}/auth/callback`,
     },
   })
   return { data, error }
 }
 
-// Sign in with Apple
-export async function signInWithApple() {
+// Sign in with Microsoft (Azure)
+export async function signInWithMicrosoft() {
+  const supabase = createBrowserClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'apple',
+    provider: 'azure',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo:
+        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+        `${window.location.origin}/auth/callback`,
+      scopes: 'email profile openid',
     },
   })
   return { data, error }
@@ -66,6 +80,7 @@ export async function signInWithApple() {
 
 // Sign out
 export async function signOut() {
+  const supabase = createBrowserClient()
   const { error } = await supabase.auth.signOut()
   return { error }
 }

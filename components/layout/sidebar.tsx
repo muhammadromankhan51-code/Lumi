@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { Home, Eye, Pill, AlertTriangle, Bell, User, MessageCircle, Settings, LogOut } from 'lucide-react'
 
@@ -23,7 +24,7 @@ export function Sidebar() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/auth/login')
+      router.push('/auth/signin')
     } catch (error) {
       console.error('Logout failed:', error)
     }
@@ -34,14 +35,16 @@ export function Sidebar() {
   return (
     <div className="w-56 bg-background border-r border-border h-screen flex flex-col p-6 fixed left-0 top-0 overflow-y-auto">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-12">
-        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-lg">
-          <span className="text-lg font-bold text-primary-foreground">⚡</span>
-        </div>
-        <div>
-          <h1 className="font-bold text-lg text-foreground">Lumi</h1>
-          <p className="text-xs text-muted-foreground leading-tight">AI Digital Pharmacist</p>
-        </div>
+      <div className="mb-12">
+        <Image
+          src="/lumi-logo.png"
+          alt="RX Lumi"
+          width={160}
+          height={50}
+          className="h-10 w-auto"
+          style={{ filter: 'invert(36%) sepia(85%) saturate(1200%) hue-rotate(190deg) brightness(95%) contrast(101%)' }}
+        />
+        <p className="text-xs text-muted-foreground mt-1">AI Digital Pharmacist</p>
       </div>
 
       {/* Menu Items */}
