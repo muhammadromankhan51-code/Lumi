@@ -3,9 +3,10 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
-import { Camera, Upload, Mic, MicOff, AlertCircle, Loader2, FileImage, CheckCircle2, Sparkles, X } from 'lucide-react'
+import { Camera, Mic, MicOff, AlertCircle, Loader2, FileImage, CheckCircle2, Sparkles, X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useVoiceInput } from '@/hooks/use-voice-input'
+import { LumiMascot, LumiLoader } from '@/components/lumi-mascot'
 
 export default function ScanPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -252,21 +253,19 @@ export default function ScanPage() {
                 {previewImage && isLoading && (
                   <div className="relative rounded-xl overflow-hidden mb-6 animate-fade-in">
                     <img src={previewImage} alt="Prescription preview" className="w-full max-h-64 object-contain bg-gray-50" />
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <div className="text-center text-white">
-                        <Loader2 className="w-10 h-10 animate-spin mx-auto mb-3" />
-                        <p className="font-medium">Analyzing prescription...</p>
-                        <p className="text-sm opacity-80">Using AI to extract information</p>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                      <div className="text-center">
+                        <LumiMascot size="lg" state="thinking" />
+                        <p className="font-medium text-white mt-4">Analyzing prescription...</p>
+                        <p className="text-sm text-white/80">Using AI to extract information</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {isLoading && !previewImage && (
-                  <div className="text-center py-12 animate-fade-in">
-                    <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-3" />
-                    <p className="text-foreground font-medium">Analyzing...</p>
-                    <p className="text-sm text-muted-foreground">Using AI to process your input</p>
+                  <div className="py-8">
+                    <LumiLoader text="Processing your input" />
                   </div>
                 )}
 

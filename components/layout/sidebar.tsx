@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, MessageSquare, ScanLine, AlertTriangle, Settings, HelpCircle, Stethoscope } from 'lucide-react'
-import { LumiAvatar } from '@/components/lumi-avatar'
+import { LumiMascot } from '@/components/lumi-mascot'
 
 const mainNavItems = [
   { name: 'Home', href: '/dashboard', icon: Home },
@@ -27,7 +27,9 @@ export function Sidebar() {
       {/* Logo Section */}
       <div className="p-5 border-b border-border/50">
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <LumiAvatar size="sm" />
+          <div className="transition-transform duration-300 group-hover:scale-110">
+            <LumiMascot size="sm" state="idle" />
+          </div>
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Lumi

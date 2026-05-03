@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react'
+import { Mail, Lock, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { LumiMascot, LumiLoader } from '@/components/lumi-mascot'
 
 export default function SignInPage() {
   const router = useRouter()
@@ -81,8 +82,16 @@ export default function SignInPage() {
 
       <div className="w-full max-w-md relative z-10 animate-fade-in">
         <div className="glass-card-elevated rounded-3xl p-8">
-          {/* Header with Text Logo */}
+          {/* Header with Lumi Mascot */}
           <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <LumiMascot 
+                size="lg" 
+                state={loading ? 'thinking' : 'idle'} 
+                showGreeting={!loading}
+                greetingText="Welcome back!"
+              />
+            </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">
               Lumi
             </h1>
@@ -175,20 +184,19 @@ export default function SignInPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 btn-premium mt-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Signing In...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </button>
+            {loading ? (
+              <div className="py-4">
+                <LumiLoader text="Signing you in" />
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 btn-premium mt-2"
+              >
+                Sign In
+              </button>
+            )}
           </form>
 
           <div className="mt-6 pt-6 border-t border-gray-100">
