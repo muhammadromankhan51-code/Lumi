@@ -1,9 +1,5 @@
 import { generateText } from 'ai'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Initialize Google Gemini with API key if available
-const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
 
 export interface ExtractedMedicine {
   name: string
@@ -79,50 +75,25 @@ If you cannot read certain parts clearly, still extract what you can and note un
 Return ONLY the JSON object, nothing else.`
 
     try {
-      let result
-      
-      if (geminiApiKey) {
-        // Use Google Gemini directly with API key
-        const google = createGoogleGenerativeAI({ apiKey: geminiApiKey })
-        result = await generateText({
-          model: google('gemini-2.0-flash'),
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  image: `data:${mimeType};base64,${imageBase64}`,
-                },
-                {
-                  type: 'text',
-                  text: analysisPrompt
-                }
-              ]
-            }
-          ]
-        })
-      } else {
-        // Fall back to Vercel AI Gateway
-        result = await generateText({
-          model: 'google/gemini-2.5-flash-preview-04-17',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  image: `data:${mimeType};base64,${imageBase64}`,
-                },
-                {
-                  type: 'text',
-                  text: analysisPrompt
-                }
-              ]
-            }
-          ]
-        })
-      }
+      // Use Vercel AI Gateway with OpenAI (zero-config, works without credit card)
+      const result = await generateText({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                image: `data:${mimeType};base64,${imageBase64}`,
+              },
+              {
+                type: 'text',
+                text: analysisPrompt
+              }
+            ]
+          }
+        ]
+      })
 
       // Try to parse structured JSON response
       let structuredData: PrescriptionAnalysis | null = null
@@ -189,21 +160,10 @@ Return ONLY the JSON object, nothing else.`
       console.error('[v0] AI analysis error:', aiError)
       const errorMessage = aiError instanceof Error ? aiError.message : 'Unknown error'
       
-      // Check if it's a credit card verification error
-      if (errorMessage.includes('credit card') || errorMessage.includes('customer_verification_required')) {
-        return NextResponse.json({
-          success: false,
-          rawText: '',
-          analysis: 'AI service requires configuration. Please add your Gemini API key in Settings > Vars.',
-          structuredData: null,
-          timestamp: new Date().toISOString(),
-        })
-      }
-      
       return NextResponse.json({
         success: false,
         rawText: '',
-        analysis: 'AI analysis failed. Please try again.',
+        analysis: `AI analysis failed: ${errorMessage}. Please try again.`,
         structuredData: null,
         timestamp: new Date().toISOString(),
       })

@@ -1,9 +1,5 @@
 import { generateText } from 'ai'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Initialize Google Gemini with API key if available
-const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,35 +49,17 @@ ${medicineContext}`
       })
     }
 
-    // Try Gemini API key first, then fall back to Vercel AI Gateway
-    let result
-    
-    if (geminiApiKey) {
-      // Use Google Gemini directly with API key
-      const google = createGoogleGenerativeAI({ apiKey: geminiApiKey })
-      result = await generateText({
-        model: google('gemini-2.0-flash'),
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: userContent,
-          }
-        ]
-      })
-    } else {
-      // Fall back to Vercel AI Gateway
-      result = await generateText({
-        model: 'google/gemini-2.5-flash-preview-04-17',
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: userContent,
-          }
-        ]
-      })
-    }
+    // Use Vercel AI Gateway with OpenAI (zero-config, works without credit card)
+    const result = await generateText({
+      model: 'openai/gpt-4o-mini',
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: userContent,
+        }
+      ]
+    })
 
     return NextResponse.json({
       success: true,
@@ -92,16 +70,8 @@ ${medicineContext}`
     console.error('[v0] Chat API error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     
-    // Check if it's a credit card verification error
-    if (errorMessage.includes('credit card') || errorMessage.includes('customer_verification_required')) {
-      return NextResponse.json(
-        { error: 'AI service requires configuration. Please add your Gemini API key or verify your Vercel account.' },
-        { status: 503 }
-      )
-    }
-    
     return NextResponse.json(
-      { error: 'Failed to process your message. Please try again.' },
+      { error: `Failed to process your message: ${errorMessage}` },
       { status: 500 }
     )
   }
