@@ -81,9 +81,9 @@ If you cannot read certain parts clearly, still extract what you can and note un
 Return ONLY the JSON object, nothing else.`
 
     try {
-      // Use Groq with vision model for prescription analysis
+      // Use Groq with Llama 4 Scout vision model for prescription analysis
       const result = await generateText({
-        model: groq('llama-3.2-90b-vision-preview'),
+        model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
         messages: [
           {
             role: 'user',
