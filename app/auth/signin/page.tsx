@@ -3,59 +3,38 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Mail, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const router = useRouter()
-  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
-    }
-
     setLoading(true)
 
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
-            `${window.location.origin}/auth/callback`,
-          data: {
-            full_name: fullName,
-          },
-        },
       })
 
       if (error) throw error
-      router.push('/auth/confirm-email?email=' + encodeURIComponent(email))
+      router.push('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign up failed')
+      setError(err instanceof Error ? err.message : 'Sign in failed')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGoogleSignUp = async () => {
+  const handleGoogleSignIn = async () => {
     setError('')
     try {
       const supabase = createClient()
@@ -69,11 +48,11 @@ export default function SignUpPage() {
       })
       if (error) throw error
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign up failed. Provider may not be enabled.')
+      setError(err instanceof Error ? err.message : 'Google sign in failed. Provider may not be enabled.')
     }
   }
 
-  const handleMicrosoftSignUp = async () => {
+  const handleMicrosoftSignIn = async () => {
     setError('')
     try {
       const supabase = createClient()
@@ -88,7 +67,7 @@ export default function SignUpPage() {
       })
       if (error) throw error
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Microsoft sign up failed. Provider may not be enabled.')
+      setError(err instanceof Error ? err.message : 'Microsoft sign in failed. Provider may not be enabled.')
     }
   }
 
@@ -110,7 +89,7 @@ export default function SignUpPage() {
             <p className="text-sm text-muted-foreground">AI Digital Pharmacist</p>
           </div>
 
-          <h2 className="text-xl font-semibold text-foreground text-center mb-6">Create Account</h2>
+          <h2 className="text-xl font-semibold text-foreground text-center mb-6">Welcome Back</h2>
 
           {/* Error Message */}
           {error && (
@@ -120,11 +99,11 @@ export default function SignUpPage() {
             </div>
           )}
 
-          {/* Social Sign Up Buttons */}
+          {/* Social Sign In Buttons */}
           <div className="space-y-3 mb-6">
             <button
               type="button"
-              onClick={handleGoogleSignUp}
+              onClick={handleGoogleSignIn}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 group"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -138,7 +117,7 @@ export default function SignUpPage() {
 
             <button
               type="button"
-              onClick={handleMicrosoftSignUp}
+              onClick={handleMicrosoftSignIn}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 group"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -156,29 +135,12 @@ export default function SignUpPage() {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-muted-foreground">or sign up with email</span>
+              <span className="px-4 bg-white text-muted-foreground">or sign in with email</span>
             </div>
           </div>
 
-          {/* Email Sign Up Form */}
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white transition-all duration-200"
-                  required
-                />
-              </div>
-            </div>
-
+          {/* Email Sign In Form */}
+          <form onSubmit={handleSignIn} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
                 Email Address
@@ -206,24 +168,7 @@ export default function SignUpPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white transition-all duration-200"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
+                  placeholder="Enter your password"
                   className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white transition-all duration-200"
                   required
                 />
@@ -238,27 +183,23 @@ export default function SignUpPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Creating Account...
+                  Signing In...
                 </>
               ) : (
-                'Create Account'
+                'Sign In'
               )}
             </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-gray-100">
             <p className="text-sm text-muted-foreground text-center">
-              Already have an account?{' '}
-              <Link href="/auth/signin" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
-                Sign In
+              Don&apos;t have an account?{' '}
+              <Link href="/auth/signup" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
+                Sign Up
               </Link>
             </p>
           </div>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          By signing up, you agree to our Terms of Service and Privacy Policy
-        </p>
       </div>
     </div>
   )
