@@ -2,100 +2,105 @@
 
 import React from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { useRouter, usePathname } from 'next/navigation'
-import { Home, Eye, Pill, AlertTriangle, Bell, User, MessageCircle, Settings, LogOut } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Home, MessageSquare, ScanLine, AlertTriangle, Settings, HelpCircle, Stethoscope } from 'lucide-react'
+import { LumiAvatar } from '@/components/lumi-avatar'
+
+const mainNavItems = [
+  { name: 'Home', href: '/dashboard', icon: Home },
+  { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare },
+  { name: 'Scan', href: '/dashboard/scan', icon: ScanLine },
+  { name: 'Interactions', href: '/dashboard/interactions', icon: AlertTriangle },
+  { name: 'Consult', href: '/dashboard/consult', icon: Stethoscope },
+]
+
+const bottomNavItems = [
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
+]
 
 export function Sidebar() {
-  const router = useRouter()
   const pathname = usePathname()
 
-  const menuItems = [
-    { icon: Home, label: 'Home', href: '/dashboard' },
-    { icon: Eye, label: 'Scan Prescription', href: '/dashboard/scan' },
-    { icon: Pill, label: 'My Medicines', href: '/dashboard/medicines' },
-    { icon: AlertTriangle, label: 'Drug Interactions', href: '/dashboard/interactions' },
-    { icon: Bell, label: 'Reminders', href: '/dashboard/reminders' },
-    { icon: User, label: 'Patient Profile', href: '/dashboard/profile' },
-    { icon: MessageCircle, label: 'AI Chat Assistant', href: '/dashboard/chat' },
-    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
-  ]
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/auth/signin')
-    } catch (error) {
-      console.error('Logout failed:', error)
-    }
-  }
-
-  const isActive = (href: string) => pathname === href
-
   return (
-    <div className="w-56 bg-background border-r border-border h-screen flex flex-col p-6 fixed left-0 top-0 overflow-y-auto">
-      {/* Logo */}
-      <div className="mb-12">
-        <Image
-          src="/lumi-logo.png"
-          alt="RX Lumi"
-          width={160}
-          height={50}
-          className="h-10 w-auto"
-          style={{ filter: 'invert(36%) sepia(85%) saturate(1200%) hue-rotate(190deg) brightness(95%) contrast(101%)' }}
-        />
-        <p className="text-xs text-muted-foreground mt-1">AI Digital Pharmacist</p>
+    <aside className="fixed left-0 top-0 bottom-0 w-56 bg-white border-r border-border/50 flex flex-col z-50 shadow-sm">
+      {/* Logo Section */}
+      <div className="p-5 border-b border-border/50">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <LumiAvatar size="sm" />
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Lumi
+            </h1>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">AI Pharmacist</p>
+          </div>
+        </Link>
       </div>
 
-      {/* Menu Items */}
-      <nav className="flex-1 space-y-1">
-        {menuItems.map((item) => {
-          const active = isActive(item.href)
+      {/* Main Navigation */}
+      <nav className="flex-1 p-3 space-y-1">
+        {mainNavItems.map((item) => {
+          const isActive = pathname === item.href || 
+            (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const Icon = item.icon
+
           return (
             <Link
-              key={item.href}
+              key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-foreground hover:bg-accent/50'
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                isActive
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
             >
-              <item.icon className="w-5 h-5" />
-              <span className="text-sm font-medium">{item.label}</span>
+              <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-muted-foreground group-hover:text-primary'} transition-colors`} />
+              <span>{item.name}</span>
+              {isActive && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/50" />
+              )}
             </Link>
           )
         })}
       </nav>
 
-      {/* AI Chat Widget */}
-      <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-4 mb-6 border border-primary/20">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-sm">😊</span>
+      {/* Promotional Card */}
+      <div className="px-3 mb-3">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+              <Stethoscope className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xs font-semibold text-blue-700">Pro Tip</span>
           </div>
-          <div>
-            <p className="font-semibold text-sm text-foreground">Hi! I&apos;m Lumi</p>
-            <p className="text-xs text-muted-foreground">Your AI Pharmacist</p>
-          </div>
+          <p className="text-xs text-blue-700/70 leading-relaxed">
+            Check drug interactions before taking new medications to stay safe.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground mb-4">How can I help you today?</p>
-        <button
-          onClick={() => router.push('/dashboard/chat')}
-          className="w-full py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors"
-        >
-          Talk to Lumi
-        </button>
       </div>
 
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        className="w-full flex items-center gap-2 px-4 py-3 rounded-lg border border-border hover:bg-destructive/5 hover:border-destructive/30 text-foreground transition-colors text-sm font-medium"
-      >
-        <LogOut className="w-4 h-4" />
-        Logout
-      </button>
-    </div>
+      {/* Bottom Navigation */}
+      <div className="p-3 border-t border-border/50 space-y-1">
+        {bottomNavItems.map((item) => {
+          const isActive = pathname === item.href
+          const Icon = item.icon
+
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{item.name}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </aside>
   )
 }
