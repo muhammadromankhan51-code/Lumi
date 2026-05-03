@@ -1,9 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
+const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function analyzePrescriptionImage(imageData: string) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   
   const prompt = `You are a pharmacist AI assistant. Analyze this prescription image and provide:
 1. List of medications with dosages
@@ -28,7 +29,7 @@ Format your response as JSON.`;
 }
 
 export async function generateMedicineAnalysis(medicineText: string) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   
   const prompt = `As a pharmacist AI, analyze this prescription text and provide detailed information about the medicines mentioned. Include dosages, purposes, precautions, and potential interactions. Format as JSON.`;
 

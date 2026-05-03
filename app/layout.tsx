@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { LanguageProvider } from '@/context/language-context'
+import { MedicationsProvider } from '@/context/medications-context'
 import './globals.css'
 
 const inter = Inter({ 
@@ -43,7 +44,9 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} bg-background`}>
       <body className="font-sans antialiased bg-background text-foreground">
         <LanguageProvider>
-          {children}
+          <MedicationsProvider>
+            {children}
+          </MedicationsProvider>
         </LanguageProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
